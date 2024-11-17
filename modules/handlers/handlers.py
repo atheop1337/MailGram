@@ -19,25 +19,25 @@ class BaseHandler:
             self._user_id = source.from_user.id
             self._username = source.from_user.username
 
-    async def handle(self, source: Union[types.Message, types.CallbackQuery], state: FSMContext):
+    async def handle(self, source: Union[types.Message, types.CallbackQuery], state: FSMContext, callback_data: str):
         await self.get_info(source)
         state_name = await state.get_state()
 
         if isinstance(source, types.Message):
-            await self._handle_message(source, state, state_name)
+            await self._handle_message(source, state, state_name, callback_data)
         elif isinstance(source, types.CallbackQuery):
-            await self._handle_callback_query(source, state, state_name)
+            await self._handle_callback_query(source, state, state_name, callback_data)
 
-    async def _handle_message(self, message: types.Message, state: FSMContext, state_name: str):
+    async def _handle_message(self, message: types.Message, state: FSMContext, state_name: str, callback_data: str):
         raise NotImplementedError("This method should be implemented by subclasses")
 
-    async def _handle_callback_query(self, callback: types.CallbackQuery, state: FSMContext, state_name: str):
+    async def _handle_callback_query(self, callback: types.CallbackQuery, state: FSMContext, state_name: str, callback_data: str):
         raise NotImplementedError("This method should be implemented by subclasses")
 
 
 class Handlers:
     class StartHandler(BaseHandler):
-        async def _handle_message(self, message: types.Message, state: FSMContext, state_name: str):
+        async def _handle_message(self, message: types.Message, state: FSMContext, state_name: str, callback_data: str):
             logging.info(f"Handling start message for user {self._user_id}")
             
             exist = await self._db.insert_user(self._user_id, self._username)
@@ -50,9 +50,9 @@ class Handlers:
                 
                 await message.answer(welcome_message)
             else:
-                await message.answer(en.EN_WELCOME_MESSAGE(self._username))
+                await message.answer(en.Messages_Service.WELCOME_MESSAGE(self._username))
                 
-        async def _handle_callback_query(self, callback: types.CallbackQuery, state: FSMContext, state_name: str):
+        async def _handle_callback_query(self, callback: types.CallbackQuery, state: FSMContext, state_name: str, callback_data: str):
             logging.info(f"Handling start callback query for user {self._user_id}")           
             user_data = await self._db.fetch_info(self._user_id)
             language = user_data.get("language")
@@ -62,22 +62,45 @@ class Handlers:
             await callback.message.answer(welcome_message)
             
     class ProfileHandler(BaseHandler):
-        async def _handle_message(self, message: types.Message, state: FSMContext, state_name: str):
-            logging.info(f"Handling profile message for user {self._user_id}")
+        async def _handle_message(self, message: types.Message, state: FSMContext, state_name: str, callback_data: str):
+            if callback_data is None or callback_data == "profile":
+                logging.info(f"Handling profile message for user {self._user_id}")
+                user_data = await self._db.fetch_info(self._user_id)
+                language = user_data.get("language")
+                
+                profile_message = en.Messages_Service.PROFILE_MESSAGE(user_data) if language == "en" else ru.Messages_Service.PROFILE_MESSAGE(user_data)
+                profile_keyboard = en.Buttons_Service.PROFILE_MENU_BUTTONS() if language == "en" else ru.Buttons_Service.PROFILE_MENU_BUTTONS()
+                
+                await message.answer(text=profile_message, reply_markup=profile_keyboard)
+            elif callback_data == "change_language":
+                await self._handle_change_language(message)
+            elif callback_data == "en" or callback_data == "ru":
+                await self._db.change_info(self._user_id, "language", callback_data)
+                await self._handle_message(message, state, state_name, callback_data = "profile")
+                
+            
+        async def _handle_callback_query(self, callback: types.CallbackQuery, state: FSMContext, state_name: str, callback_data: str):
+            if callback_data is None or callback_data == "profile":
+                logging.info(f"Handling profile callback query for user {self._user_id}")
+                user_data = await self._db.fetch_info(self._user_id)
+                language = user_data.get("language")
+                
+                profile_message = en.Messages_Service.PROFILE_MESSAGE(user_data) if language == "en" else ru.Messages_Service.PROFILE_MESSAGE(user_data)
+                profile_keyboard = en.Buttons_Service.PROFILE_MENU_BUTTONS() if language == "en" else ru.Buttons_Service.PROFILE_MENU_BUTTONS()
+                
+                await callback.message.answer(text=profile_message, reply_markup=profile_keyboard)
+            elif callback_data == "change_language":
+                await self._handle_change_language(callback.message)
+            elif callback_data == "en" or callback_data == "ru":
+                await self._db.change_info(self._user_id, "language", callback_data)
+                await self._handle_message(callback.message, state, state_name, callback_data = "profile")
+                
+        async def _handle_change_language(self, message: types.Message):
+            logging.info(f"Handling change language for user {self._user_id}")
             user_data = await self._db.fetch_info(self._user_id)
             language = user_data.get("language")
             
-            profile_message = en.Messages_Service.PROFILE_MESSAGE(user_data) if language == "en" else ru.Messages_Service.PROFILE_MESSAGE(user_data)
-            profile_keyboard = en.Buttons_Service.PROFILE_MENU_BUTTONS() if language == "en" else ru.Buttons_Service.PROFILE_MENU_BUTTONS()
-            
-            await message.answer(text=profile_message, reply_markup=profile_keyboard)
-            
-        async def _handle_callback_query(self, callback: types.CallbackQuery, state: FSMContext, state_name: str):
-            logging.info(f"Handling profile callback query for user {self._user_id}")
-            user_data = await self._db.fetch_info(self._user_id)
-            language = user_data.get("language")
-            
-            profile_message = en.Messages_Service.PROFILE_MESSAGE(user_data) if language == "en" else ru.Messages_Service.PROFILE_MESSAGE(user_data)
-            profile_keyboard = en.Buttons_Service.PROFILE_MENU_BUTTONS() if language == "en" else ru.Buttons_Service.PROFILE_MENU_BUTTONS()
-            
-            await callback.message.answer(text=profile_message, reply_markup=profile_keyboard)
+            if language == "en":
+                await message.answer(text = en.Messages_Service.CHANGE_LANGUAGE_MESSAGE(), reply_markup=en.Buttons_Service.LANGUAGE_CHOICE_BUTTONS())
+            else:
+                await message.answer(text = ru.Messages_Service.CHANGE_LANGUAGE_MESSAGE(), reply_markup=ru.Buttons_Service.LANGUAGE_CHOICE_BUTTONS())

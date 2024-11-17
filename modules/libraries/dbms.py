@@ -67,3 +67,18 @@ class Database:
             logging.error(f"Error fetching user info: {e}")
             return None
         
+    async def change_info(self, user_id: int, identity: any, value: any) -> Union[bool, None]:
+        try:
+            async with aiosqlite.connect(self.database) as db:
+                async with db.cursor() as cursor:
+                    await cursor.execute(
+                        f"UPDATE users SET {identity} =? WHERE user_id =?",
+                        (value, user_id)
+                    )
+                    await db.commit()
+                    logging.info(f"User info updated successfully.")
+                    return True
+        except Exception as e:
+            logging.error(f"Error updating user info: {e}")
+            return None
+        

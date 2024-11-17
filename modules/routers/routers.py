@@ -8,10 +8,14 @@ from typing import Union
 router = Router()
 
 @router.message(CommandStart())
+@router.callback_query(F.data == "start")
 async def cmd_start_handler(source: Union[types.Message, types.CallbackQuery], state: FSMContext):
-    await start_handler.handle(source, state)
+    await start_handler.handle(source, state, callback_data="start")
     
 @router.message(Command("profile"))
-@router.callback_query(F.data == "profile")
+@router.callback_query(F.data.in_({"profile", "change_credentials", "change_language", "en", "ru"}))
 async def cmd_profile_handler(source: Union[types.Message, types.CallbackQuery], state: FSMContext):
-    await profile_handler.handle(source, state)
+    callback_data = "profile"
+    if isinstance(source, types.CallbackQuery):
+        callback_data = source.data
+    await profile_handler.handle(source, state, callback_data)
