@@ -22,11 +22,15 @@ def read_token_from_file(file_path) -> str:
         raise ValueError(f"Error reading token from file: {e}")
 
 
-def setup_logging():
+def setup():
     log_dir = ".logs"
+    database_dir = "database"
+    tokens_dir = "tokens"
     os.makedirs(log_dir, exist_ok=True)
+    os.makedirs(database_dir, exist_ok=True)
+    os.makedirs(tokens_dir, exist_ok=True)
 
-    log_filename = os.path.join(log_dir, "LOGS")
+    log_filename = os.path.join(log_dir, "logs.log")
 
     logging.basicConfig(
         level=logging.INFO,
@@ -57,7 +61,7 @@ async def main() -> None:
 
 if __name__ == "__main__":
     try:
-        setup_logging()
+        setup()
         logging.info(f"Using {'WIN' if os.name == 'nt' else 'UNIX'} base kernel")
         asyncio.run(main())
     except Exception as e:

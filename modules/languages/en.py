@@ -13,6 +13,10 @@ class Messages_Service:
     @staticmethod
     def CHANGE_LANGUAGE_MESSAGE() -> str:
         return "Choose your preferred language:"
+    
+    @staticmethod
+    def CHANGE_CREDENTIALS_MESSAGE() -> str:
+        return "Send me your new credentials:"
 
 class Buttons_Service:
     

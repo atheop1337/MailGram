@@ -13,6 +13,10 @@ class Messages_Service:
     @staticmethod
     def CHANGE_LANGUAGE_MESSAGE() -> str:
         return "Выберите язык: "
+    
+    @staticmethod
+    def CHANGE_CREDENTIALS_MESSAGE() -> str:
+        return "Отправьте новые данные для авторизации:"
 
 class Buttons_Service:
     

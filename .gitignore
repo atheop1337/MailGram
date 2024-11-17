@@ -161,8 +161,13 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# Ignore all .db files
+# Ignore all .db | .log | .json files
 *.db
+*.log
+*.json
 
 # Ignore the logs directory and its contents
 .logs/
+
+# Ignore test.py
+test.py
