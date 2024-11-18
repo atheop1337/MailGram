@@ -82,3 +82,7 @@ class Database:
             logging.error(f"Error updating user info: {e}")
             return None
         
+    async def close(self):
+        async with aiosqlite.connect(self.database) as db:
+            await db.close()
+        

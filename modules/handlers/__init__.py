@@ -5,3 +5,4 @@ handlers = Handlers()
 
 start_handler = handlers.StartHandler()
 profile_handler = handlers.ProfileHandler()
+mail_handler = handlers.MailFetcherHandler()

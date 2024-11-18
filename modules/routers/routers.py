@@ -2,7 +2,7 @@ from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.filters import CommandStart, Command
-from modules.handlers import start_handler, profile_handler
+from modules.handlers import start_handler, profile_handler, mail_handler
 from modules.libraries.const import _States
 from typing import Union
 
@@ -21,3 +21,11 @@ async def cmd_profile_handler(source: Union[types.Message, types.CallbackQuery],
     if isinstance(source, types.CallbackQuery):
         callback_data = source.data
     await profile_handler.handle(source, state, callback_data)
+    
+@router.message(Command("mail_fetcher")) 
+@router.message(Command("stop_mail"))     
+async def cmd_mail_handler(source: Union[types.Message, types.CallbackQuery], state: FSMContext):
+    callback_data = "mail_fetcher"
+    if isinstance(source, types.CallbackQuery):
+        callback_data = source.data
+    await mail_handler.handle(source, state, callback_data)

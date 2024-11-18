@@ -5,8 +5,10 @@ from aiogram.enums import ChatAction
 from modules.libraries.dbms import Database
 from modules.languages import en, ru
 from modules.libraries.const import _States
+from modules.libraries.mailchecker import GmailMonitor
 from typing import Union
-import logging
+import logging, os, asyncio
+import google.auth.exceptions
 
 
 class BaseHandler:
@@ -64,8 +66,7 @@ class Handlers:
             
     class ProfileHandler(BaseHandler):
         async def _handle_message(self, message: types.Message, state: FSMContext, state_name: str, callback_data: str):
-            if state_name is None:
-                
+            if state_name is None:             
                 if callback_data in (None, "profile"):
                     logging.info(f"Handling profile message for user {self._user_id}")
                     user_data = await self._db.fetch_info(self._user_id)
@@ -150,3 +151,68 @@ class Handlers:
             except Exception as e:
                 logging.error(f"Error downloading file: {e}")
                 await message.answer("Failed to download the file. Please try again.")
+
+                
+    class MailFetcherHandler(BaseHandler):
+        async def _handle_message(self, message: types.Message, state: FSMContext, state_name: str, callback_data: str):
+            if message.text == "/mail_fetcher":
+                await self._start_monitoring(message)
+            elif message.text == "/stop_mail":
+                await self._handle_stop_monitoring(message)
+
+        async def _handle_callback_query(self, callback: types.CallbackQuery, state: FSMContext, state_name: str, callback_data: str):
+            if callback_data in (None, "mail_fetcher"):
+                await self._start_monitoring(callback.message)
+            elif callback_data == "stop_mail":
+                await self._handle_stop_monitoring(callback.message)
+
+        async def _start_monitoring(self, message: types.Message):
+            user_data = await self._db.fetch_info(self._user_id)
+            language = user_data.get("language")
+            if hasattr(self, "_running_tasks") and self._user_id in self._running_tasks:
+                await message.answer("📩 Мониторинг почты уже запущен!" if language == "ru" else "📩 Monitoring emails is already started!")
+                return
+
+            if not hasattr(self, "_running_tasks"):
+                self._running_tasks = {}
+
+            credentials_path = f"tokens\\{self._user_id}_credentials.json"
+            token_path = f"tokens\\{self._user_id}_token.json"
+            if not os.path.exists(credentials_path):
+                await message.answer("⛔ Ваши учетные данные для доступа к почте не найдены. Загрузите файл." if language == "ru" else "📩 Monitoring emails is already started!")
+                return
+
+            monitor = GmailMonitor(credentials_file=credentials_path, token_file=token_path, check_interval=30)
+
+            try:
+                monitor.authenticate()
+            except Exception as e:
+                logging.error(f"Authentication Error: {e}")
+                await message.answer("⚠️ Ошибка аутентификации. Проверьте свои учетные данные." if language == "ru" else "⚠️ Authentication error. Check your credentials.")
+                return
+
+            async def monitor_task():
+                try:
+                    while True:
+                        new_messages = monitor.list_new_messages()
+                        if new_messages:
+                            response = "\n\n".join(
+                                f"📧 <b>Письмо {idx + 1}:</b>\n<b>Тема:</b> {msg['subject']}" if language == "ru" else f"📧 <b>Email {idx + 1}:</b>\n<b>Subject:</b> {msg['subject']}"
+                                for idx, msg in enumerate(new_messages)
+                            )
+                            await message.answer(response)
+                        await asyncio.sleep(monitor.check_interval)
+                except asyncio.CancelledError:
+                    logging.info(f" {self._user_id}")
+
+            task = asyncio.create_task(monitor_task())
+            self._running_tasks[self._user_id] = task
+            await message.answer("📬 Мониторинг почты начат! Проверка новых писем каждые 30 секунд." if language == "ru" else "📬 Monitoring emails started! Checking new emails every 30 seconds.")
+
+        async def _handle_stop_monitoring(self, message: types.Message):
+            if hasattr(self, "_running_tasks") and self._user_id in self._running_tasks:
+                self._running_tasks[self._user_id].cancel()
+                del self._running_tasks[self._user_id]
+                await message.answer("⛔ Мониторинг почты остановлен!" if language == "ru" else "⛔ Mail monitoring has stopped!")
+            else:
+                await message.answer("❌ Мониторинг почты не запущен." if language == "ru" else "❌ Mail monitoring is not running.")
