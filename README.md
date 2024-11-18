@@ -8,10 +8,13 @@ A Telegram bot for monitoring Gmail inboxes, fetching the latest emails, and not
 
 ### Email Monitoring  
 - **Fetch Latest Emails:**  
-  Users can fetch the 10 most recent emails from their Gmail inbox with `/fetch_mail`.  
+  Users can fetch the 10 most recent emails from their Gmail inbox with `/mail_fetcher`.  
 
 - **Continuous Monitoring:**  
-  The bot monitors the Gmail inbox every 30 seconds and notifies users of new emails.  
+  The bot monitors the Gmail inbox every 30 seconds and notifies users of new emails.
+
+- **Profile:**
+  Profile contents registration date, path to creds and more.
 
 - **Stop Monitoring:**  
   Users can stop the monitoring process anytime using `/stop_mail`.  
